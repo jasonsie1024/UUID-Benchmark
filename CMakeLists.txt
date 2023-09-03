@@ -15,6 +15,7 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
 find_package(Boost REQUIRED)
 find_package(benchmark REQUIRED)
+find_package(stduuid REQUIRED)
 
 add_executable(uuid_benchmark uuid_benchmark.cpp)
-target_link_libraries(uuid_benchmark PRIVATE Boost::boost benchmark::benchmark benchmark::benchmark_main)
+target_link_libraries(uuid_benchmark PRIVATE Boost::boost benchmark::benchmark benchmark::benchmark_main stduuid)

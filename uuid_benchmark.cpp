@@ -3,6 +3,7 @@
 #include <boost/uuid/uuid_io.hpp>
 #include <chrono>
 #include <iostream>
+#include <stduuid/uuid.h>
 #include <thread>
 
 template <typename generator>
@@ -59,11 +60,12 @@ static void BM_normal_gen(benchmark::State& state)
     BenchMarker<boost::uuids::random_generator> normal_uuid;
 
     for (auto _ : state) {
-        normal_uuid.gen_string<use_replace>();
+        benchmark::DoNotOptimize(
+            normal_uuid.gen_string<use_replace>());
     }
 }
-BENCHMARK_TEMPLATE(BM_normal_gen, true)->Name("BOOST_NORMAL (use std::replace)");
-BENCHMARK_TEMPLATE(BM_normal_gen, false)->Name("BOOST_NORMAL");
+BENCHMARK_TEMPLATE(BM_normal_gen, true)->Name("boost::uuids::random_generator (use std::replace)");
+BENCHMARK_TEMPLATE(BM_normal_gen, false)->Name("boost::uuids::random_generator");
 
 template <bool use_replace>
 static void BM_mt19937_gen(benchmark::State& state)
@@ -71,10 +73,39 @@ static void BM_mt19937_gen(benchmark::State& state)
     BenchMarker<boost::uuids::random_generator_mt19937> mt19937_uuid;
 
     for (auto _ : state) {
-        mt19937_uuid.gen_string<use_replace>();
+        benchmark::DoNotOptimize(
+            mt19937_uuid.gen_string<use_replace>());
     }
 }
-BENCHMARK_TEMPLATE(BM_mt19937_gen, true)->Name("BOOST_MT19937 (use std::replace)");
-BENCHMARK_TEMPLATE(BM_mt19937_gen, false)->Name("BOOST_MT19937");
+
+BENCHMARK_TEMPLATE(BM_mt19937_gen, true)->Name("boost::uuids::random_generator_mt19937 (use std::replace)");
+BENCHMARK_TEMPLATE(BM_mt19937_gen, false)->Name("boost::uuids::random_generator_mt19937");
+
+template <bool use_replace>
+static void BM_stduuid_gen(benchmark::State& state)
+{
+    std::random_device rd;
+    auto seed_data = std::array<int, std::mt19937::state_size> {};
+    std::generate(std::begin(seed_data), std::end(seed_data), std::ref(rd));
+    std::seed_seq seq(std::begin(seed_data), std::end(seed_data));
+    std::mt19937 generator(seq);
+
+    for (auto _ : state) {
+        auto str = uuids::to_string(
+            uuids::uuid_random_generator {generator}());
+
+        if constexpr (use_replace) {
+            std::replace(str.begin(), str.end(), '-', '_');
+        } else {
+            str[8] = str[13] = str[18] = str[23] = '_';
+        }
+
+        benchmark::DoNotOptimize(
+            str);
+    }
+}
+
+BENCHMARK_TEMPLATE(BM_stduuid_gen, true)->Name("uuids::uuid_system_generator (use std::replace)");
+BENCHMARK_TEMPLATE(BM_stduuid_gen, false)->Name("uuids::uuid_system_generator");
 
 BENCHMARK_MAIN();

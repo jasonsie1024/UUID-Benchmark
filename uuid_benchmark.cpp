@@ -1,6 +1,6 @@
+#include <benchmark/benchmark.h>
 #include <boost/uuid/random_generator.hpp>
 #include <boost/uuid/uuid_io.hpp>
-#include <benchmark/benchmark.h>
 #include <chrono>
 #include <iostream>
 #include <thread>
@@ -13,10 +13,16 @@ public:
     {
     }
 
+    template <bool use_replace>
     inline std::string gen_string()
     {
+
         std::string str = boost::uuids::to_string(generator_());
-        std::replace(str.begin(), str.end(), '-', '_');
+        if constexpr (use_replace) {
+            std::replace(str.begin(), str.end(), '-', '_');
+        } else {
+            str[8] = str[13] = str[18] = str[23] = '_';
+        }
         return str;
     }
 
@@ -38,7 +44,8 @@ private:
     std::chrono::steady_clock::time_point begin;
 };
 
-auto get_seed(){
+auto get_seed()
+{
     auto thread_hash = std::hash<std::thread::id>()(std::this_thread::get_id());
     auto tick = std::chrono::steady_clock::now().time_since_epoch().count();
     auto rand = thread_hash ^ tick;
@@ -46,22 +53,28 @@ auto get_seed(){
     return rand;
 }
 
-static void BM_normal_gen(benchmark::State &state) {
+template <bool use_replace>
+static void BM_normal_gen(benchmark::State& state)
+{
     BenchMarker<boost::uuids::random_generator> normal_uuid;
 
-    for(auto _: state){
-        normal_uuid.gen_string();
+    for (auto _ : state) {
+        normal_uuid.gen_string<use_replace>();
     }
 }
-BENCHMARK(BM_normal_gen);
+BENCHMARK_TEMPLATE(BM_normal_gen, true)->Name("BOOST_NORMAL (use std::replace)");
+BENCHMARK_TEMPLATE(BM_normal_gen, false)->Name("BOOST_NORMAL");
 
-static void BM_mt19937_gen(benchmark::State &state) {
+template <bool use_replace>
+static void BM_mt19937_gen(benchmark::State& state)
+{
     BenchMarker<boost::uuids::random_generator_mt19937> mt19937_uuid;
 
-    for(auto _: state){
-        mt19937_uuid.gen_string();
+    for (auto _ : state) {
+        mt19937_uuid.gen_string<use_replace>();
     }
 }
-BENCHMARK(BM_mt19937_gen);
+BENCHMARK_TEMPLATE(BM_mt19937_gen, true)->Name("BOOST_MT19937 (use std::replace)");
+BENCHMARK_TEMPLATE(BM_mt19937_gen, false)->Name("BOOST_MT19937");
 
 BENCHMARK_MAIN();
